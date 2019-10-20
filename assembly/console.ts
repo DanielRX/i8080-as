@@ -16,7 +16,7 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
-class console2 {
+class Console {
   public line: string = '';
 
   log(s: string): void {
@@ -24,13 +24,12 @@ class console2 {
   }
 
   flush(): void {
-    this.log("OUTPUT: " + this.line);
-    this.line = "";
+    this.log('OUTPUT: ' + this.line);
+    this.line = '';
   }
 
   putchar(c: u8): void {
-    if (c == 10) return;
-    if (this.line == null) this.line = "";
+    if (c == 10) { return; }
     if (c == 13) {
       this.flush();
     } else {
@@ -39,6 +38,6 @@ class console2 {
   }
 };
 
-export const i8080Console = new console2();
+export const console = new Console();
 
 
