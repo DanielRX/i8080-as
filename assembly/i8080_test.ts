@@ -16,109 +16,92 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
-import {i8080Console} from './console';
-import {preloaded_files, File} from './files';
+import {console} from './console';
+import {preloaded_files} from './files';
 import {I8080} from './i8080';
+import {hex16} from './utils';
+import {Memory} from './memory';
+import {IO} from './io';
 
-export class Memory {
-  public mem: Uint8Array;
+import {I8080_trace} from './i8080_trace';
 
-  constructor() {
-    this.mem = new Uint8Array(0x10000);
-  }
+const files = preloaded_files();
+const mem = new Memory(0x10000);
+const cpu = new I8080(mem, new IO());
 
-  read(addr: u16): u8 {
-    return this.mem[addr & 0xffff];
-  }
+let success_check: boolean;
+let success = false;
 
-  write(addr: u16, w8: u8): void {
-    this.mem[addr & 0xffff] = w8;
-  }
+const StepState_incomplete = 0;
+const StepState_fail = 1;
+const StepState_pass  = 2;
 
-  load_file(files: Map<string, File>, name: string): void {
-    const file = files.get(name);
-    if (file == null) {
-      i8080Console.log("File " + name + " is not found");
-      return;
-    }
-    var end: u16 = <u16>(file.start + file.image.length - 1);
-    for (var i = file.start; i <= end; ++i)
-      this.write(i, <u8>file.image.charCodeAt(i - file.start));
-
-      i8080Console.log("*********************************");
-    var size = file.end - file.start + 1;
-    i8080Console.log("File \"" + name + "\" loaded, size " + size.toString());
-  }
-}
-
-export class IO {
-  input(port: u8): u8 { return 0; }
-  output(port: u8, w8: u8): void {}
-  interrupt(iff: bool): void {}
-}
-
-function execute_test(filename: string, success_check: boolean): bool {
-  let files = preloaded_files();
-
-  var success = 0;
-
-  var mem = new Memory();
-  mem.load_file(files, filename);
-
-  mem.write(5, 0xC9);  // Inject RET at 0x0005 to handle "CALL 5".
-
-  var cpu = new I8080(mem, new IO());
-
-  cpu.jump(0x100);
-
-  while (1) {
+@inline
+export function step(): i32 {
     // Enable this line to print out the CPU registers, the current
     // instruction and the mini-dumps addressed by the register pairs.
-    // console.log((new i8080_trace(cpu)).r);
+    // console.log((new I8080_trace(cpu)).r);
 
     // Enable this to be able to interrupt the execution after each
     // instruction.
     // if (!confirm(i8080_trace(cpu))) return;
-
-    var pc = cpu.pc;
-    if (mem.read(pc) == 0x76) {
-      i8080Console.log("HLT at " + pc.toString()) // ! 16));
-      i8080Console.flush();
-      return false;
+    let pc = cpu.pc;
+    if (mem.getUint8Unsafe(pc) == 0x76) {
+      console.log('HLT at ' + hex16(pc));
+      console.flush();
+      return StepState_fail;
     }
     if (pc == 0x0005) {
       if (cpu.c == 9) {
         // Print till '$'.
-        for (var i = cpu.de(); mem.read(i) != 0x24; i += 1) {
-          i8080Console.putchar(mem.read(i));
+        for (let i = cpu.de; mem.getUint8Unsafe(i) != 0x24; i += 1) {
+          console.putchar(mem.getUint8Unsafe(i));
         }
-        success = 1;
+        success = true;
       }
-      if (cpu.c == 2) i8080Console.putchar(cpu.e);
+      if (cpu.c == 2) console.putchar(<u8>cpu.e);
     }
     cpu.instruction();
     if (cpu.pc == 0) {
-      i8080Console.flush();
-      i8080Console.log("Jump to 0000 from " + pc.toString()) // 16));
-      if (success_check && !success)
-        return false;
-      return true;
+      console.flush();
+      console.log('Jump to 0000 from ' + hex16(pc));
+      return (success_check && !success) ? StepState_fail : StepState_pass;
     }
-  }
-  return false;
+    return StepState_incomplete;
 }
 
-export function main(enable_exerciser: boolean = true): void {
-  i8080Console.log("Intel 8080/JS test");
-  i8080Console.putchar(<u8>"\n");
+export function execute_test(): bool {
+  let stepData = StepState_incomplete;
+  while (!stepData) { stepData = step(); }
+  return stepData == StepState_pass;
+}
 
-  execute_test("TEST.COM", false);
-  execute_test("CPUTEST.COM", false);
-  execute_test("8080PRE.COM", true);
+const tests: string[] = ['TEST.COM', 'CPUTEST.COM', '8080PRE.COM', '8080EX1.COM'];
+const success_checks: bool[] = [false, false, true, false];
+
+export function load_file(file: u8): void {
+  mem.load_file(files, tests[file]);
+  mem.setUint8Unsafe(5, 0xC9);  // Inject RET at 0x0005 to handle 'CALL 5'.
+  cpu.jump(0x100);
+  success_check = success_checks[file];
+}
+
+export function main(enable_exerciser: boolean = false): void {
+  console.log('Intel 8080/AS test');
+  // i8080Console.putchar(<u8>('\n'.charCodeAt(0)));
+
+  load_file(0);
+  execute_test();
+  load_file(1);
+  execute_test();
+  load_file(2);
+  execute_test();
 
   // We may want to disable this test because it may take an hour
   // running in the browser. Within the standalone V8 interpreter
   // it works ~30 minutes.
-  if (enable_exerciser)
-    execute_test("8080EX1.COM", false);
+  if (enable_exerciser) {
+    load_file(3);
+    execute_test();
+  }
 }

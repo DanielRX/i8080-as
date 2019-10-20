@@ -69,43 +69,40 @@ function dump_file(name: string) {
     entry = start;
   }
 
-  console.log(`files['${name}'] = {`);
+  console.log(`files.set('${name}', {`);
   console.log(`start: 0x${hex(start, 4)},`);
   console.log(`end: 0x${hex(end, 4)},`);
   console.log(`entry: 0x${hex(entry, 4)},`);
-  console.log(`image:`);
-
-  let line = '"';
+  console.log(`image: [`);
+  let line = '';
   let i = 0;
   while (start <= end) {
     assert.ok(n < sz, `n = ${n}, sz = ${sz}, start = ${start}, end = ${end}`);
     let c = contents[n];
     n += 1;
-    line += "\\x" + hex(c, 2);
+    line += c.toString() + ', ';
     i += 1;
     if (i >= 32) {
       i = 0;
-      line += '"';
-      if (start < end) line += ' +\n"';
+      if (start < end) line += '\n';
     }
     ++start;
   }
-  if (i > 0) line += '"';
-  line += "\n};\n\n"
+  if (i > 0) line += '';
+  line += "]\n});\n\n"
   console.log(line);
 }
 
 export function dump() {
-  console.log("export function preloaded_files() {");
-  console.log("let files = {};\n");
-
+  console.log('export class File {start: u16; end: u16; entry: u16; image: u8[]}');
+  console.log("let files: Map<string, File> = new Map<string, File>();\n");
+  
   for (let file of fs.readdirSync('files')) {
     if (!file) continue;
     dump_file(file);
   }
-
-  console.log("return files;");
-  console.log("}\n");
+  
+  console.log("export function preloaded_files(): Map<string, File> {return files; }");
 }
 
 dump();
