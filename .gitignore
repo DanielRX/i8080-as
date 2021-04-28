@@ -1,7 +1,8 @@
-/all.js
-/files.js
 /build
 /out
 /assembly/files.ts
 /package-lock.json
 /node_modules
+/flame
+/assemblyscript
+/assembly/files.ts

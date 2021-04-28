@@ -1,64 +1,64 @@
 const fs = require('fs');
-const buf2 = fs.readFileSync('out/untouched.wasm');
-const optString = 'Run time - opt: ';
+
+const wasmData = fs.readFileSync('out/untouched.wasm');
+const wasmDataOpt = fs.readFileSync('out/optimized.wasm');
+
 let myModule;
-  const runner = async () => {
-  const CHUNKSIZE = 1024;
 
-  function getString(memory, ptr) {
-    if (!memory) return "<yet unknown>";
-    return getStringImpl(memory.buffer, ptr);
-  }
-  function getStringImpl(buffer, ptr) {
-    const U32 = new Uint32Array(buffer);
-    const U16 = new Uint16Array(buffer);
-    var length = U32[(ptr - 4) >>> 2] >>> 1;
-    var offset = ptr >>> 1;
-    if (length <= CHUNKSIZE) return String.fromCharCode.apply(String, U16.subarray(offset, offset + length));
-    const parts = [];
-    do {
-      const last = U16[offset + CHUNKSIZE - 1];
-      const size = last >= 0xD800 && last < 0xDC00 ? CHUNKSIZE - 1 : CHUNKSIZE;
-      parts.push(String.fromCharCode.apply(String, U16.subarray(offset, offset += size)));
-      length -= size;
-    } while (length > CHUNKSIZE);
-    return parts.join("") + String.fromCharCode.apply(String, U16.subarray(offset, offset + length));
-  }
-  
-  function trace(mesg, n) {
-    return("trace: " + getString(myModule.instance.exports.memory, mesg) + (n ? " " : "") + Array.prototype.slice.call(arguments, 2, 2 + n).join(", "));
-  }
+// ! Config
+const optString = 'Run time: ';
+const CHUNKSIZE = 1024;
+// ! Config
 
-  const memory = new WebAssembly.Memory({initial: 1000});
-  const myImports = {
-    env: {
-        memory,
-        abort: () => {},
-      trace: function(x) {
-        const str = trace(x);
-        console.log(str);
-      // console.timeLog(optString, str)
-      }
-    }
-  };
+const memory = new WebAssembly.Memory({initial: 10});
 
-  // let request = new XMLHttpRequest();
-  // request.open('GET', 'out/untouched.wasm');
-  // request.responseType = 'arraybuffer';
-  // request.send();
+const trace = (mesg) => { console.log(getString(myModule.instance.exports.memory, mesg)); }
+const abort = () => {};
 
-  // request.onload = async function() {
-    // const bytes = request.response;
-    myModule = await WebAssembly.instantiate(buf2, myImports );
-    const disableLog = false;
-    const runAll = false;
-    const runCount = 1;
-    console.time(optString);
-    for(let i = 0; i < runCount; i++) {
-      myModule.instance.exports.main(runAll, disableLog);
-    }
-  console.timeEnd(optString);
-  // };
+const getString = (memory, ptr) => {
+  if (!memory) return "<yet unknown>";
+  return getStringImpl(memory.buffer, ptr);
 }
 
-runner();
+const getLongStringImpl = (buffer, ptr) => {
+  const U32 = new Uint32Array(buffer);
+  const U16 = new Uint16Array(buffer);
+  let length = U32[(ptr - 4) >>> 2] >>> 1;
+  let offset = ptr >>> 1;
+  const parts = [];
+  do {
+    const last = U16[offset + CHUNKSIZE - 1];
+    const size = last >= 0xD800 && last < 0xDC00 ? CHUNKSIZE - 1 : CHUNKSIZE;
+    parts.push(String.fromCharCode.apply(String, U16.subarray(offset, offset += size)));
+    length -= size;
+  } while (length > CHUNKSIZE);
+  return parts.join("") + String.fromCharCode.apply(String, U16.subarray(offset, offset + length));
+}
+
+const getStringImpl = (buffer, ptr) => {
+  const U32 = new Uint32Array(buffer);
+  const U16 = new Uint16Array(buffer);
+  let length = U32[(ptr - 4) >>> 2] >>> 1;
+  let offset = ptr >>> 1;
+  if (length <= CHUNKSIZE) return String.fromCharCode.apply(String, U16.subarray(offset, offset + length));
+  return getLongStringImpl(buffer, ptr);
+}
+
+const runner = async (options) => {
+  console.log({options}) 
+  const env = {memory, abort, trace};
+  myModule = await WebAssembly.instantiate(options.opt ? wasmDataOpt : wasmData, {env} );
+  console.time(optString);
+  for(let j = 0; j < options.runs; j++) {
+    for(let i = 0; i < options.tests; i++) { 
+      console.time(optString + 'load: ');
+      myModule.instance.exports.load_file(i);
+      console.timeEnd(optString + 'load: ');
+      console.time(optString + 'execute: ');
+      myModule.instance.exports.execute_test();
+      console.timeEnd(optString + 'execute: ');
+    }
+  }
+  console.timeEnd(optString);
+}
+module.exports.runner = runner;
