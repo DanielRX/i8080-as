@@ -1,0 +1,24 @@
+{
+  "targets": {
+    "debug": {
+      "binaryFile": "out/untouched.wasm",
+      "textFile": "out/untouched.wat",
+      "memoryBase": 70000,
+      "sourceMap": true,
+      "debug": true,
+      "runtime": "stub"
+    },
+    "release": {
+      "binaryFile": "out/optimized.wasm",
+      "textFile": "out/optimized.wat",
+      "memoryBase": 70000,
+      "sourceMap": true,
+      "optimizeLevel": 3,
+      "shrinkLevel": 1,
+      "converge": false,
+      "noAssert": false,
+      "runtime": "stub"
+    }
+  },
+  "options": {}
+}
