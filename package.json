@@ -7,7 +7,7 @@
     "asbuild:untouched": "node assemblyscript/bin/asc assembly/i8080_test.ts -b out/untouched.wasm -t out/untouched.wat --memoryBase 70000 --sourceMap --debug --runtime=none",
     "asbuild:optimized": "node assemblyscript/bin/asc assembly/i8080_test.ts -b out/optimized.wasm -t out/optimized.wat --memoryBase 70000 --sourceMap -O3 --optimize --runtime=none",
     "asbuild": "npm run files && npm run asbuild:untouched && npm run asbuild:optimized",
-    "setup": "git clone https://github.com/AssemblyScript/assemblyscript.git && cd assemblyscript && npm i && npm run clean",
+    "setup": "git clone git@github.com:AssemblyScript/assemblyscript.git && cd assemblyscript && npm i && npm run clean",
     "files": "ts-node src/rkdump.ts",
     "test": "node runner.js",
     "profile:half": "0x -D flame runner-half.js",

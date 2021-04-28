@@ -24,13 +24,12 @@ class Console {
   }
 
   flush(): void {
-    this.log("OUTPUT: " + this.line);
-    this.line = "";
+    this.log('OUTPUT: ' + this.line);
+    this.line = '';
   }
 
   putchar(c: u8): void {
-    if (c == 10) return;
-    if (this.line == null) this.line = "";
+    if (c == 10) { return; }
     if (c == 13) {
       this.flush();
     } else {
